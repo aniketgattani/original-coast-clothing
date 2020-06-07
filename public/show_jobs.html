@@ -1,0 +1,228 @@
+<html>
+<head>
+    <title>Choose your preferences</title>
+</head>
+<body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script type="text/javascript">
+  var essential_permissions = ["pages_show_list"];
+  var APP_ID = '208316303470676';
+  var edit = "<%= edit >"
+  var psid;
+  var alertStrings;
+  var essentialFields = ["title", "descr", "page_name"];
+
+  var load_sdk = function (d, s, id, src) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) {
+        return;
+    }
+    js = d.createElement(s);
+    js.id = id;
+    js.src = src;
+    fjs.parentNode.insertBefore(js, fjs);
+  };
+
+  load_sdk(document,'script', 'facebook-jssdk',"//connect.facebook.net/en_US/sdk.js");
+
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId      : APP_ID,
+      cookie     : true,                     // Enable cookies to allow the server to access the session.
+      xfbml      : true,                     // Parse social plugins on this webpage.
+      version    : 'v7.0'          // Use this Graph API version for this call.
+    });
+
+    FB.getLoginStatus(function(response) {   // Called after the JS SDK has been initialized.
+      console.log(response);
+       statusChangeCallback(response);        // Returns the login status.
+    });
+          
+  };
+
+  function getPermission(){
+    FB.login(function(response) {
+      console.log(response.authResponse);
+    }, {
+      scope: 'pages_show_list',
+      return_scopes : true
+    });
+  }
+
+
+
+  function checkPermissions() {
+    FB.api(
+      '/me',
+      'GET',
+      {"fields":"permissions"},
+      function(response) {
+        flag=1;  
+        for(let permission of response.permissions.data){
+          if(essential_permissions.includes(permission.permission) && permission.status !== "granted"){
+            flag=0;
+          }
+        }
+        if(flag==0){
+          document.getElementById("login").style.display = "inline";
+        }
+        else{
+          load_sdk(document, 'script', 'Messenger', "//connect.facebook.com/en_US/messenger.Extensions.js");
+        }
+      }
+    );
+    
+  }
+
+  function fetchPages() {
+    FB.api(
+      '/me',
+      'GET',
+      {"fields":"accounts"},
+      function(response) {
+        var page_dropdown = document.getElementsByClassName("pages_dropdown");
+        for(let dropdown of page_dropdown){
+            for(let page of response.accounts.data){  
+              var option = document.createElement("option");
+              option.text = page.name;
+              option.value = page.name + "_" + page.id;
+              dropdown.add(option);
+            
+          }
+        }
+        
+      }
+    );
+    
+  }
+
+
+  function statusChangeCallback(response) {  // Called with the results from FB.getLoginStatus().
+    console.log('statusChangeCallback');
+    console.log(response);                   // The current login status of the person.
+    if (response.status === 'connected') {   // Logged into your webpage and Facebook.
+      checkPermissions();  
+    }
+  }    
+
+  window.extAsyncInit = () => {
+      // TODO: How to parse env file from here?
+    MessengerExtensions.getSupportedFeatures(function success(result) {
+      let features = result.supported_features;
+        if (features.includes("context")) {
+          MessengerExtensions.getContext(APP_ID,
+            function success(thread_context) {
+              // success
+              setPsid(thread_context.psid);
+              document.getElementById("psid").value = thread_context.psid;
+              $.ajax({
+                url : "/get_alerts",
+                contentType : "application/json",
+                datatype : "json",
+                data : {"psid":psid},
+                success : function(result) {
+                    //console.log(result); // result is an object which is created from the returned JSON
+                    setAlertString(result);
+                }
+              });
+              $.ajax({
+                url : "/get_jobs",
+                contentType : "application/json",
+                datatype : "json",
+                data : {"psid":psid, "alertStrings": alertStrings},
+                success : function(result) {
+                  //console.log(result); // result is an object which is created from the returned JSON
+                  for(let job of result){
+                    var jobDiv = document.createElement("div");
+                    jobDiv.innerHTML="<ul>";
+                    for(let jobItem in job){
+                      var elementId=jobItem+job['id'];
+                      if(jobItem==="page_name" && job['psid']===psid){
+                        jobDiv.innerHTML+='<label for="'+elementId+'">Choose your page</label>';
+                        jobDiv.innerHTML+='<select class="pages_dropdown" name="'+elementId+'" id="'+elementId+'">';
+                        jobDiv.innerHTML+='</select>';
+                      }
+                      else if(essentialFields.includes(jobItem)){
+                        jobDiv.innerHTML+='<li id='+elementId+'>'+job[jobItem]+'</li>';
+                      }else{
+                        jobDiv.innerHTML+='<li id='+elementId+' style="display:none;">'+job[jobItem]+'</li>';
+                      }
+
+                    }
+                    if(job['psid']==psid){
+                      jobDiv.innerHTML+='<li><input type="button" value="Edit" id="edit_'
+                          +job.id+'" onclick="editJob('+job.id+')"></li>';
+                      jobDiv.innerHTML+='<li><input type="button" value="Delete" id="delete_'
+                          +job.id+'" onclick="deleteJob('+job.id+')"></li>';
+                    }
+                    document.getElementById("content").appendChild(jobDiv);
+                    fetchPages();
+
+                  }
+                }
+              });
+            },
+            function error(err) {
+              // error
+              console.log(err);
+            }
+          );
+        }
+      }, function error(err) {
+          // error retrieving supported features
+          console.log(err);
+      });
+      document.getElementById('submitButton').addEventListener('click', () => {
+        MessengerExtensions.requestCloseBrowser(function success() {
+          console.log("Webview closing");
+        }, function error(err) {
+          console.log(err);
+        });
+      });
+  };
+
+    function deleteJob(jobId){
+        $.ajax({
+            url : "/delete_job_postback",
+            contentType : "application/json",
+            dataType : "text",
+            type : "POST",
+            data : JSON.stringify({"psid": psid, "jobId":jobId}),
+            success : function(result) {
+                //console.log(result); // result is an object which is created from the returned JSON
+                var delButton = document.getElementById("delete_"+jobId);
+                delButton.value = "Deleted";
+                delButton.disabled = true;
+            }
+        });
+    }
+    function editJob(jobId){
+        $.ajax({
+            url : "/create_job",
+            contentType : "application/json",
+            dataType : "text",
+            type : "POST",
+            data : JSON.stringify({"psid": psid, "jobId":jobId}),
+            success : function(result) {
+                //console.log(result); // result is an object which is created from the returned JSON
+                var delButton = document.getElementById("delete_"+jobId);
+                delButton.value = "Deleted";
+                delButton.disabled = true;
+            }
+        });
+    }
+
+    function setAlertString(resultString){
+        alertString = resultString;
+    }
+    function setPsid(psid){
+        this.psid = psid;
+    }
+
+</script>
+<input type="hidden" name="psid" id="psid">
+<input type="submit" value="Close" id="submitButton">
+
+<div id="content"></div>
+</body>
+</html>

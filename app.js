@@ -16,13 +16,36 @@ const express = require("express"),
   crypto = require("crypto"),
   path = require("path"),
   Receive = require("./services/receive"),
+  Response = require("./services/response"),
   GraphAPi = require("./services/graph-api"),
   User = require("./services/user"),
   config = require("./services/config"),
   i18n = require("./i18n.config"),
+  mySQL = require("mysql"),
   app = express();
 
 var users = {};
+
+var db_username = process.env.DB_USERNAME
+var db_password = process.env.DB_PASSWORD
+var db_name = process.env.DB_NAME
+var db_host = process.env.DB_HOST
+
+var connection = mySQL.createConnection({
+  host: db_host,
+  user: db_username,
+  database: db_name,
+  password: db_password
+});
+
+
+connection.connect((err) => {
+  if(err){
+    console.log("Failed to connect to database", err);
+    throw err;
+  }
+});
+
 
 // Parse application/x-www-form-urlencoded
 app.use(
@@ -43,6 +66,144 @@ app.set("view engine", "ejs");
 // Respond with index file when a GET request is made to the homepage
 app.get("/", function(_req, res) {
   res.render("index");
+});
+
+// Serve the options path and set required headers
+app.get('/create_job', (req, res, next) => {
+    let referer = req.get('Referer');
+    let jobId = ""; let jobDescr = "";
+    let jobTitle = ""; let pageId = "";
+    let edit = 1; let pageName = "";
+
+    if(req.query["jobId"]) jobId = req.query["jobId"];
+    else edit = 0;
+    if(req.query["title"]) jobTitle = req.query["title"];
+    if(req.query["descr"]) jobDescr = req.query["descr"];
+    if(req.query["page_id"]) pageId = req.query["page_id"];
+    if(req.query["page_name"]) pageName = req.query["page_name"];
+    
+    if (referer) {
+        if (referer.indexOf('www.messenger.com') >= 0) {
+            res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.messenger.com/');
+        } else if (referer.indexOf('www.facebook.com') >= 0) {
+            res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.facebook.com/');
+        }
+        res.sendFile('public/create_job.html', {
+          root: __dirname, 
+          jobId: jobId, 
+          jobTitle: jobTitle,
+          jobDescr: jobDescr,
+          pageId: pageId,
+          pageName: pageName,
+          edit: edit
+        });
+    }
+});
+
+
+// Serve the options path and set required headers
+app.get('/show_jobs', (req, res, next) => {
+  let referer = req.get('Referer');
+  if (referer) {
+      if (referer.indexOf('www.messenger.com') >= 0) {
+          res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.messenger.com/');
+      } else if (referer.indexOf('www.facebook.com') >= 0) {
+          res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.facebook.com/');
+      }
+      //let sqlQuery = `SELECT * jobs (psid,title,descr) VALUES ('${body.psid}', '${body.title}', '${body.descr}')`;
+      res.sendFile('public/show_jobs.html', {root: __dirname});
+  }
+});
+
+// Serve the options path and set required headers
+app.get('/get_jobs', (req, res, next) => {
+  let psid = req.query["psid"];
+  let queryString = req.query["queryString"];
+  let sqlQuery = `SELECT * FROM jobs WHERE psid='${psid}' OR title='${queryString}'`;
+  try{
+    runSQLQuery(sqlQuery, function(response){
+      return res.status(200).send(JSON.parse(JSON.stringify(response)));
+    });
+  }
+  catch(e){
+    let response = {}; 
+    console.log(e.message);
+    res.status(500).send(JSON.parse(JSON.stringify(response)));
+  } 
+});
+
+app.get('/get_alerts', (req, res, next) => {
+  let psid = req.query["psid"];
+  let sqlQuery = `SELECT * FROM alerts WHERE psid='${psid}'`;
+  try{
+    runSQLQuery(sqlQuery, function(response){
+      return res.status(200).send(JSON.parse(JSON.stringify(response)));
+    });
+  }
+  catch(e){
+    let response = {}; 
+    console.log(e.message);
+    res.status(500).send(JSON.parse(JSON.stringify(response)));
+  } 
+});
+
+
+// Handle postback from webview
+app.post('/create_job_postback', (req, res) => {
+    let body = req.body;
+    let responseText = "Failed to add a job. Error:";
+    let page_name = body.page.split('_')[0];
+    let page_id = body.page.split('_')[1];
+
+    let sqlQuery = `INSERT INTO jobs (psid,title,descr,page_id,page_name) VALUES ('${body.psid}', '${body.title}', '${body.descr}', '${page_id}', '${page_name}')`;
+    console.log(sqlQuery);
+    try{
+      runSQLQuery(sqlQuery,function(result){
+        responseText = `Created a job posting with title as ${body.title}`;
+        let response = {
+          recipient: {
+            id: body.psid
+          },
+          message : Response.genText(responseText)
+        };
+
+        res.status(200).send('Please close this window to return to the conversation thread.');
+        GraphAPi.callSendAPI(response);
+      
+      });         
+    }
+    catch(e){
+      console.log(e.message);
+    } 
+});
+
+
+
+// Handle postback from webview
+app.post('/delete_job_postback', (req, res) => {
+    let body = req.body;
+    let responseText = "Failed to delete a job";
+    let sqlQuery = `DELETE FROM jobs WHERE psid='${body.psid}' AND id='${body.jobId}'`;
+    console.log(sqlQuery);
+    try{
+      runSQLQuery(sqlQuery,function(result){
+        responseText = `Deleted a job posting with id ${body.jobId}`;
+        let response = {
+          recipient: {
+            id: body.psid
+          },
+          message : Response.genText(responseText)
+        };
+
+        res.status(200).send('Deleted job');
+        GraphAPi.callSendAPI(response);
+      });
+    }
+    catch(e){
+      console.log(e.message);
+      res.status(500).send(responseText);
+    } 
+
 });
 
 // Adds support for GET requests to our webhook
@@ -104,18 +265,7 @@ app.post("/webhook", (req, res) => {
 
       // Gets the body of the webhook event
       let webhookEvent = entry.messaging[0];
-      // console.log(webhookEvent);
-
-      // Discard uninteresting events
-      if ("read" in webhookEvent) {
-        // console.log("Got a read event");
-        return;
-      }
-
-      if ("delivery" in webhookEvent) {
-        // console.log("Got a delivery event");
-        return;
-      }
+      console.log(webhookEvent);
 
       // Get the sender PSID
       let senderPsid = webhookEvent.sender.id;
@@ -221,6 +371,19 @@ app.get("/profile", (req, res) => {
     res.sendStatus(404);
   }
 });
+
+
+// Run SQL Query
+function runSQLQuery(sqlQuery,callback){
+  let results;
+  connection.query(sqlQuery,function(err, result){
+    if(err) {
+      console.log(err.message);
+      throw new Error("Failed to run query");
+    }
+    return callback(result);
+  });
+}
 
 // Verify that the callback came from Facebook.
 function verifyRequestSignature(req, res, buf) {

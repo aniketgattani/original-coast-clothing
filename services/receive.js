@@ -78,6 +78,10 @@ module.exports = class Receive {
 
     let message = this.webhookEvent.message.text.trim().toLowerCase();
 
+    let job_title= this.firstEntity(this.webhookEvent.message.nlp, "job_title");
+
+    //console.log(job_title);
+
     let response;
 
     if (
@@ -85,14 +89,19 @@ module.exports = class Receive {
       message.includes("start over")
     ) {
       response = Response.genNuxMessage(this.user);
-    } else if (Number(message)) {
+    } else if(job_title){
+      job_title.firstName = job_title.value;
+      response = Response.genNuxMessage(job_title);
+    }
+      else if (Number(message)) {
       response = Order.handlePayload("ORDER_NUMBER");
     } else if (message.includes("#")) {
       response = Survey.handlePayload("CSAT_SUGGESTION");
     } else if (message.includes(i18n.__("care.help").toLowerCase())) {
       let care = new Care(this.user, this.webhookEvent);
       response = care.handlePayload("CARE_HELP");
-    } else {
+    } 
+    else {
       response = [
         Response.genText(
           i18n.__("fallback.any", {
@@ -100,17 +109,19 @@ module.exports = class Receive {
           })
         ),
         Response.genText(i18n.__("get_started.guidance")),
-        Response.genQuickReply(i18n.__("get_started.help"), [
-          {
-            title: i18n.__("menu.suggestion"),
-            payload: "CURATION"
-          },
-          {
-            title: i18n.__("menu.help"),
-            payload: "CARE_HELP"
-          }
-        ])
+      //   Response.genQuickReply(i18n.__("get_started.help"), [
+      //     {
+      //       title: i18n.__("menu.suggestion"),
+      //       payload: "CURATION"
+      //     },
+      //     {
+      //       title: i18n.__("menu.help"),
+      //       payload: "CARE_HELP"
+      //     }
+      //   ])
+        Response.genButtonTemplate("Donno what to do", [Response.genWebUrlButton("sample button","https://5220a5ff49ad.ngrok.io/jobs")])
       ];
+        
     }
 
     return response;
@@ -122,6 +133,7 @@ module.exports = class Receive {
 
     // Get the attachment
     let attachment = this.webhookEvent.message.attachments[0];
+    
     console.log("Received attachment:", `${attachment} for ${this.user.psid}`);
 
     response = Response.genQuickReply(i18n.__("fallback.attachment"), [
