@@ -9,7 +9,6 @@
   var APP_ID = '208316303470676';
   var edit = "<%= edit >"
   var psid;
-  var alertStrings;
   var essentialFields = ["title", "descr", "page_name"];
 
   var load_sdk = function (d, s, id, src) {
@@ -116,20 +115,10 @@
               setPsid(thread_context.psid);
               document.getElementById("psid").value = thread_context.psid;
               $.ajax({
-                url : "/get_alerts",
-                contentType : "application/json",
-                datatype : "json",
-                data : {"psid":psid},
-                success : function(result) {
-                    //console.log(result); // result is an object which is created from the returned JSON
-                    setAlertString(result);
-                }
-              });
-              $.ajax({
                 url : "/get_jobs",
                 contentType : "application/json",
                 datatype : "json",
-                data : {"psid":psid, "alertStrings": alertStrings},
+                data : {"psid":psid},
                 success : function(result) {
                   //console.log(result); // result is an object which is created from the returned JSON
                   for(let job of result){

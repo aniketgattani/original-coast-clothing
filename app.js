@@ -22,6 +22,7 @@ const express = require("express"),
   config = require("./services/config"),
   i18n = require("./i18n.config"),
   mySQL = require("mysql"),
+  cron = require("cron").CronJob,
   app = express();
 
 var users = {};
@@ -53,6 +54,38 @@ app.use(
     extended: true
   })
 );
+
+
+var job = new cron("0 0,30 * * * *", function() {
+  console.log("running a task every 30 minutes");
+  let time = new Date(Date.now());
+  let hrs = time.getHours();
+  let mins = time.getMinutes();
+  if(mins < 30) mins = 0;
+  else mins = 30;
+  let alertTime = hrs + ':' + mins;
+  let sqlQuery = `SELECT psid,alertString from alerts where time='${alertTime}'`;
+  try{
+    runSQLQuery(sqlQuery, function(response){
+      let jsonResponses = JSON.parse(JSON.stringify(response));
+      for(let resp of jsonResponses){
+        console.log(resp);
+        GraphAPi.callSendAPI({
+          message : { text : "ohh hello my boy" },
+          recipient : {
+            id: resp.psid
+          }
+        });
+      }
+    });
+  }
+  catch(e){
+    console.log(e.message);
+  } 
+  
+});
+
+job.start();
 
 // Parse application/json. Verify that callback came from Facebook
 app.use(json({ verify: verifyRequestSignature }));
@@ -118,8 +151,10 @@ app.get('/show_jobs', (req, res, next) => {
 // Serve the options path and set required headers
 app.get('/get_jobs', (req, res, next) => {
   let psid = req.query["psid"];
-  let queryString = req.query["queryString"];
-  let sqlQuery = `SELECT * FROM jobs WHERE psid='${psid}' OR title='${queryString}'`;
+
+  let sqlQuery = `SELECT * FROM jobs WHERE psid='${psid}' 
+    OR title=(SELECT alertString from alerts where psid='${psid}')`;
+    
   try{
     runSQLQuery(sqlQuery, function(response){
       return res.status(200).send(JSON.parse(JSON.stringify(response)));
@@ -147,6 +182,43 @@ app.get('/get_alerts', (req, res, next) => {
   } 
 });
 
+
+app.get('/create_alert', (req, res, next) => {
+  let psid = req.query["psid"];
+  let alertString = req.query["alertString"];
+
+  let sqlQuery = `INSERT INTO alerts (psid, alertString) VALUES('${psid}', '${alertString}') ON DUPLICATE KEY UPDATE    
+    alertString='${alertString}'`;
+
+  try{
+    runSQLQuery(sqlQuery, function(response){
+      return res.status(200).send(JSON.parse(JSON.stringify(response)));
+    });
+  }
+  catch(e){
+    let response = {}; 
+    console.log(e.message);
+    res.status(500).send(JSON.parse(JSON.stringify(response)));
+  } 
+});
+
+app.get('/delete_alert', (req, res, next) => {
+  let psid = req.query["psid"];
+  let alertString = req.query["alertString"];
+
+  let sqlQuery = `DELETE FROM alerts WHERE psid = '${psid}' AND alertString = '${alertString}'`;
+
+  try{
+    runSQLQuery(sqlQuery, function(response){
+      return res.status(200).send(JSON.parse(JSON.stringify(response)));
+    });
+  }
+  catch(e){
+    let response = {}; 
+    console.log(e.message);
+    res.status(500).send(JSON.parse(JSON.stringify(response)));
+  } 
+});
 
 // Handle postback from webview
 app.post('/create_job_postback', (req, res) => {
