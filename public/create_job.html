@@ -112,6 +112,7 @@
       function(response) {
         var page_dropdown = document.getElementById("page_dropdown");
         var page_ids = [];
+        console.log(response)
         for(let page of response.accounts.data){
             var option = document.createElement("option");
             option.text = page.name;
