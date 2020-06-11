@@ -143,7 +143,7 @@
 
 
 </script>
-<div id="login" style="display:none" class="fb-login-button" onclick="getPermission()" data-size="medium" data-button-type="continue_with" data-layout="default" data-auto-logout-link="false" data-scope="pages_show_list" data-use-continue-as="true" data-width=""></div>
+<div id="login" style="display:block" class="fb-login-button" onclick="getPermission()" data-size="medium" data-button-type="continue_with" data-layout="default" data-auto-logout-link="false" data-scope="pages_show_list" data-use-continue-as="true" data-width=""></div>
 <form id="form" hidden action="/create_job_postback" method="post">
     <input type="hidden" name="psid" id="psid">
     <input type="hidden" name="jobid" id="jobid" value="<%= jobId %>">
