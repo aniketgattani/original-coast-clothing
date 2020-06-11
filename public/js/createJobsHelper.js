@@ -57,6 +57,9 @@
 
     FB.getLoginStatus(function(response) {   // Called after the JS SDK has been initialized.
       console.log(response);
+      if (response.authResponse == null) {
+          getPermission()
+      }
        statusChangeCallback(response);        // Returns the login status.
     });
 
