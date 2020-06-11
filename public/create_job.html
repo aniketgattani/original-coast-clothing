@@ -85,6 +85,7 @@
       function(response) {
         flag=1;
         for(let permission of response.permissions.data){
+            console.log(response)
           if(essential_permissions.includes(permission.permission) && permission.status !== "granted"){
             flag=0;
           }
