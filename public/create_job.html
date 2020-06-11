@@ -20,6 +20,7 @@
   };
 
   load_sdk(document,'script', 'facebook-jssdk',"//connect.facebook.net/en_US/sdk.js");
+  load_sdk(document, 'script', 'Messenger', "//connect.facebook.com/en_US/messenger.Extensions.js");
 
   window.extAsyncInit = () => {
     MessengerExtensions.getSupportedFeatures(function success(result) {
@@ -94,7 +95,7 @@
           document.getElementById("login").style.display = "inline";
         }
         else{
-          load_sdk(document, 'script', 'Messenger', "//connect.facebook.com/en_US/messenger.Extensions.js");
+
           document.getElementById("form").hidden = false;
           fetchPages();
         }
