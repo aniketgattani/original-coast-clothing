@@ -66,6 +66,37 @@ app.get("/webhook", (req, res) => {
   }
 });
 
+app.get('/create_job', (req, res, next) => {
+  let referer = req.get('Referer');
+  let jobId = ""; let jobDescr = "";
+  let jobTitle = ""; let pageId = "";
+  let edit = 1; let pageName = "";
+
+  if(req.query["jobId"]) jobId = req.query["jobId"];
+  else edit = 0;
+  if(req.query["title"]) jobTitle = req.query["title"];
+  if(req.query["descr"]) jobDescr = req.query["descr"];
+  if(req.query["page_id"]) pageId = req.query["page_id"];
+  if(req.query["page_name"]) pageName = req.query["page_name"];
+
+  if (referer) {
+      if (referer.indexOf('www.messenger.com') >= 0) {
+          res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.messenger.com/');
+      } else if (referer.indexOf('www.facebook.com') >= 0) {
+          res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.facebook.com/');
+      }
+      res.sendFile('public/create_job.html', {
+        root: __dirname,
+        jobId: jobId,
+        jobTitle: jobTitle,
+        jobDescr: jobDescr,
+        pageId: pageId,
+        pageName: pageName,
+        edit: edit
+      });
+  }
+});
+
 // Creates the endpoint for your webhook
 app.post("/webhook", (req, res) => {
   let body = req.body;
