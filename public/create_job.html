@@ -5,38 +5,41 @@
 </head>
 <body>
 <script src="/js/createJobsHelper.js"></script>
-<div id="login" style="display:block" class="fb-login-button" onclick="getPermission()" data-size="medium" data-button-type="continue_with" data-layout="default" data-auto-logout-link="false" data-scope="pages_show_list" data-use-continue-as="true" data-width=""></div>
-<form class="uk-form-stacked" id="form" hidden action="/create_job_postback" method="post">
-    <input type="hidden" name="psid" id="psid">
-    <input type="hidden" name="jobid" id="jobid" value="<%= jobId %>">
-    <input type="hidden" name="edit" id="edit" value="<%= edit %>">
-    <div class="uk-margin">
-        <label class="uk-form-label" for="title">Job Title</label>
-        <div class="uk-form-controls">
-            <input class="uk-input" type="text" name="title" placeholder="title" value="<%= jobTitle >">
+<div id="login" style="display:none" class="fb-login-button" onclick="getPermission()" data-size="medium" data-button-type="continue_with" data-layout="default" data-auto-logout-link="false" data-scope="pages_show_list" data-use-continue-as="true" data-width=""></div>
+<div class="uk-container">
+    <form class="uk-form-stacked" id="form" hidden action="/create_job_postback" method="post">
+        <input type="hidden" name="psid" id="psid">
+        <input type="hidden" name="jobid" id="jobid" value="<%= jobId %>">
+        <input type="hidden" name="edit" id="edit" value="<%= edit %>">
+        <div class="uk-margin">
+            <label class="uk-form-label" for="title">Job Title</label>
+            <div class="uk-form-controls">
+                <input class="uk-input" type="text" name="title" placeholder="title" value="<%= jobTitle >">
+            </div>
         </div>
-    </div>
 
-    <div class="uk-margin">
-        <label class="uk-form-label" for="descr">Job Description</label>
-        <div class="uk-form-controls">
-            <input type="text" name="descr" placeholder="descr" value="<%= jobDescr >" class="uk-input"><br>
+        <div class="uk-margin">
+            <label class="uk-form-label" for="descr">Job Description</label>
+            <div class="uk-form-controls">
+                <input type="text" name="descr" placeholder="descr" value="<%= jobDescr >" class="uk-input"><br>
+            </div>
         </div>
-    </div>
 
-    <div class="uk-margin">
-        <label class="uk-form-label" for="page">Pages for which this job is posted</label>
-        <select name="page" id="page_dropdown">
+        <div class="uk-margin">
+            <label class="uk-form-label" for="page">Pages for which this job is posted</label>
+            <select name="page" class="uk-select" id="page_dropdown">
 
-        </select>
-    </div>
+            </select>
+        </div>
 
-    <div class="uk-margin">
-        <input type="submit" value="Submit" id="submitButton" class="uk-button uk-button-primary">
-    </div>
+        <div class="uk-margin">
+            <input type="submit" value="Submit" id="submitButton" class="uk-button uk-button-primary">
+        </div>
+    </form>
+</div>
 
 <script src="/uikit/uikit.min.js"></script>
 <script src="/uikit/uikit-icons.min.js"></script>
-</form>
+
 </body>
 </html>
