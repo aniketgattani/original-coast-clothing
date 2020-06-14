@@ -23,6 +23,7 @@ const express = require("express"),
   i18n = require("./i18n.config"),
   mySQL = require("mysql"),
   cron = require("cron").CronJob,
+  create_job = require("./services/create_job"),
   app = express();
 
 var users = {};
@@ -103,6 +104,12 @@ app.get("/", function(_req, res) {
 
 // Serve the options path and set required headers
 app.get('/create_job', (req, res, next) => {
+    let data = {
+      title:"dfbdf",
+      descr:"desc",
+      psid:"1234"
+    };
+    create_job.runSample(data);
     let referer = req.get('Referer');
     let jobId = ""; let jobDescr = "";
     let jobTitle = ""; let pageId = "";
@@ -229,7 +236,9 @@ app.post('/create_job_postback', (req, res) => {
 
     let sqlQuery = `INSERT INTO jobs (psid,title,descr,page_id,page_name) VALUES ('${body.psid}', '${body.title}', '${body.descr}', '${page_id}', '${page_name}')`;
     console.log(sqlQuery);
+
     try{
+      
       runSQLQuery(sqlQuery,function(result){
         responseText = `Created a job posting with title as ${body.title}`;
         let response = {
@@ -306,6 +315,7 @@ app.post("/webhook", (req, res) => {
   // Checks if this is an event from a page subscription
   if (body.object === "page") {
     // Returns a '200 OK' response to all requests
+    console.log("zvsdvsdvs1");
     res.status(200).send("EVENT_RECEIVED");
 
     // Iterates over each entry - there may be multiple if batched
