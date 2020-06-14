@@ -1,6 +1,6 @@
 
   var essential_permissions = ["pages_show_list"];
-  var APP_ID = '2702506890034333';
+  var APP_ID = '617225772225956';
   var edit = "<%= edit >"
 
   var load_sdk = function (d, s, id, src) {
@@ -37,13 +37,13 @@
     });
 
 
-    document.getElementById('submitButton').addEventListener('click', () => {
-        MessengerExtensions.requestCloseBrowser(function success() {
-            console.log("Webview closing");
-        }, function error(err) {
-            console.log(err);
-        });
-    });
+    // document.getElementById('submitButton').addEventListener('click', () => {
+    //     MessengerExtensions.requestCloseBrowser(function success() {
+    //         console.log("Webview closing");
+    //     }, function error(err) {
+    //         console.log(err);
+    //     });
+    // });
   };
 
 
@@ -68,6 +68,15 @@
   function getPermission(){
     FB.login(function(response) {
       console.log(response.authResponse);
+      if (response.accounts != undefined) {
+        for(let page of response.accounts.data){
+            var option = document.createElement("option");
+            option.text = page.name;
+            option.value = page.name + "_" + page.id;
+            page_ids.push(option.value);
+            page_dropdown.add(option);
+        }
+      }
     }, {
       scope: 'pages_show_list',
       return_scopes : true
@@ -102,7 +111,7 @@
 
   }
 
-  function fetchPages() {
+   function fetchPages() {
     FB.api(
       '/me',
       'GET',
@@ -111,7 +120,7 @@
         var page_dropdown = document.getElementById("page_dropdown");
         var page_ids = [];
         console.log(response)
-        if (!response.accounts) {
+        if (response.accounts == undefined) {
             getPermission()
         }
         for(let page of response.accounts.data){

@@ -1,0 +1,5 @@
+curl -X POST -H "Content-Type: application/json" -d '{
+  "whitelisted_domains":[
+    "http://www.google.com"
+  ]
+}' "https://graph.facebook.com/v2.6/me/messenger_profile?access_token=EAAmZA6msuZCJ0BACN4ZAt7r6XHlGdSRQZAn9rt2KYV6UJIMYN8Gb56qoZCfp8HHeAiJLuybC2XOQvGZBPLDlVNaTYtwGdCDkQEMKLgGZA9lVHRQRLeUgs0ietKXPhJ7EZBa5IeiM9bQu9M8MXqrNZBWQnYfnVuoHpbwLb9JZAVbs1ZCAwZDZD"

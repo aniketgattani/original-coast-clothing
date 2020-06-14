@@ -9,6 +9,7 @@
  */
 
 "use strict";
+let thresh = 0.6;
 
 const Curation = require("./curation"),
   Order = require("./order"),
@@ -16,6 +17,7 @@ const Curation = require("./curation"),
   Care = require("./care"),
   Survey = require("./survey"),
   GraphAPi = require("./graph-api"),
+  request = require("request"),
   i18n = require("../i18n.config");
 
 module.exports = class Receive {
@@ -50,7 +52,7 @@ module.exports = class Receive {
     } catch (error) {
       console.error(error);
       responses = {
-        text: `An error has occured: '${error}'. We have been notified and \
+        text: `An error has occured. We have been notified and
         will fix the issue shortly!`
       };
     }
@@ -62,37 +64,51 @@ module.exports = class Receive {
         delay++;
       }
     } else {
-      this.sendMessage(responses);
+      if(responses != null){
+        this.sendMessage(responses);  
+      }
+      
     }
   }
 
   // Handles messages events with text
   handleTextMessage() {
+    
     console.log(
       "Received text:",
       `${this.webhookEvent.message.text} for ${this.user.psid}`
     );
 
     // check greeting is here and is confident
-    let greeting = this.firstEntity(this.webhookEvent.message.nlp, "greetings");
+    let greeting = this.checkEntity(this.webhookEvent.message.nlp, "greetings");
 
     let message = this.webhookEvent.message.text.trim().toLowerCase();
 
+    let job_title= this.checkEntity(this.webhookEvent.message.nlp, "job_title");
+
     let response;
 
-    if (
-      (greeting && greeting.confidence > 0.8) ||
-      message.includes("start over")
-    ) {
+    let APP_URL = process.env.APP_URL;
+
+
+    if (this.checkConfidence(greeting) || message.includes("start over")) {
       response = Response.genNuxMessage(this.user);
-    } else if (Number(message)) {
-      response = Order.handlePayload("ORDER_NUMBER");
-    } else if (message.includes("#")) {
-      response = Survey.handlePayload("CSAT_SUGGESTION");
-    } else if (message.includes(i18n.__("care.help").toLowerCase())) {
-      let care = new Care(this.user, this.webhookEvent);
-      response = care.handlePayload("CARE_HELP");
-    } else {
+    } 
+    else if(this.checkConfidence(job_title)){
+      let job_create = this.checkEntity(this.webhookEvent.message.nlp, "create");
+      let job_delete = this.checkEntity(this.webhookEvent.message.nlp, "delete");
+
+
+      if(this.checkConfidence(job_create)){
+        let url = APP_URL + '/create_alert';
+        this.createAlert(url,job_title.value);
+      }
+      else if(this.checkConfidence(job_delete)){
+        let url = APP_URL + '/delete_alert';
+        this.deleteAlert(url,job_title.value);
+      }
+    }
+    else {
       response = [
         Response.genText(
           i18n.__("fallback.any", {
@@ -100,19 +116,20 @@ module.exports = class Receive {
           })
         ),
         Response.genText(i18n.__("get_started.guidance")),
-        Response.genQuickReply(i18n.__("get_started.help"), [
-          {
-            title: i18n.__("menu.suggestion"),
-            payload: "CURATION"
-          },
-          {
-            title: i18n.__("menu.help"),
-            payload: "CARE_HELP"
-          }
-        ])
+        // Response.genQuickReply(i18n.__("get_started.help"), [
+        //   {
+        //     title: i18n.__("menu.suggestion"),
+        //     payload: "CURATION"
+        //   },
+        //   {
+        //     title: i18n.__("menu.help"),
+        //     payload: "CARE_HELP"
+        //   }
+        // ])
+        Response.genButtonTemplate("Donno what to do", [Response.genWebUrlButton("sample button","https://5220a5ff49ad.ngrok.io/jobs")])
       ];
+        
     }
-
     return response;
   }
 
@@ -122,6 +139,7 @@ module.exports = class Receive {
 
     // Get the attachment
     let attachment = this.webhookEvent.message.attachments[0];
+    
     console.log("Received attachment:", `${attachment} for ${this.user.psid}`);
 
     response = Response.genQuickReply(i18n.__("fallback.attachment"), [
@@ -279,7 +297,59 @@ module.exports = class Receive {
     setTimeout(() => GraphAPi.callSendAPI(requestBody), delay);
   }
 
-  firstEntity(nlp, name) {
+  checkEntity(nlp, name) {
     return nlp && nlp.entities && nlp.entities[name] && nlp.entities[name][0];
+  }
+
+  createAlert(url,alertString){
+    let query = { alertString:alertString , psid : this.user.psid };
+    let response = {
+      recipient: {
+          id: this.user.psid
+      }
+    };
+    request({ url : url, qs : query }, function (error, res, body) {
+      if (!error && res.statusCode == 200) {
+        response.message = Response.genText(i18n.__("alert.create", {alertString: alertString})); 
+      }
+      else{
+        response.message = Response.genText(i18n.__("alert.error"));
+      }
+      GraphAPi.callSendAPI(response);
+    });
+  }
+
+  deleteAlert(url,alertString){
+    let query = {alertString : alertString , psid : this.user.psid };
+    let response = {
+      recipient: {
+          id: this.user.psid
+      }
+    };
+    let headers = {
+      'Accept': 'application/json'
+    };
+    request({url : url, qs : query, headers:headers}, function (error, res, body) {
+      if (!error && res.statusCode == 200){
+        if(JSON.parse(body).affectedRows>0) {
+          response.message = Response.genText(i18n.__("alert.delete", {alertString: alertString}));
+        }
+        else{
+          response.message = Response.genText(i18n.__("alert.delete_fail", {alertString: alertString})); 
+        }
+      }
+      else{
+        response.message = Response.genText(i18n.__("alert.error"));
+      }
+      GraphAPi.callSendAPI(response);
+    });
+  }
+
+  setResponse(res, res1){
+    res.text=res1.text;
+  }
+
+  checkConfidence(entity){
+    return (entity && entity.confidence >= thresh);
   }
 };
