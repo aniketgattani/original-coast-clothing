@@ -45,7 +45,7 @@ var connection = mySQL.createConnection({
 connection.connect((err) => {
   if(err){
     console.log("Failed to connect to database", err);
-    throw err;
+    // throw err;
   }
 });
 
@@ -338,7 +338,7 @@ function runSQLQuery(sqlQuery,callback){
   connection.query(sqlQuery,function(err, result){
     if(err) {
       console.log(err.message);
-      throw new Error("Failed to run query");
+      // throw new Error("Failed to run query");
     }
     return callback(result);
   });
@@ -607,7 +607,7 @@ function runSQLQuery(sqlQuery,callback){
   connection.query(sqlQuery,function(err, result){
     if(err) {
       console.log(err.message);
-      throw new Error("Failed to run query");
+      // throw new Error("Failed to run query");
     }
     return callback(result);
   });
@@ -627,7 +627,7 @@ function verifyRequestSignature(req, res, buf) {
       .update(buf)
       .digest("hex");
     if (signatureHash != expectedHash) {
-      throw new Error("Couldn't validate the request signature.");
+      // throw new Error("Couldn't validate the request signature.");
     }
   }
 }
