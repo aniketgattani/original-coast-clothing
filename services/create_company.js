@@ -46,6 +46,8 @@ const createCompany = async(jobServiceClient, company_name) => {
 
     // Construct a company
     const companyToBeCreated = generateCompany(company_name);
+
+    console.log(jobServiceClient.projects.companies);
     
     const request = {
       parent: `projects/${PROJECT_ID}`,
@@ -53,8 +55,6 @@ const createCompany = async(jobServiceClient, company_name) => {
         company: companyToBeCreated,
       },
     };
-
-    console.log(request);
 
     const companyCreated = await jobServiceClient.projects.companies.create(
       request

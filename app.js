@@ -24,6 +24,7 @@ const express = require("express"),
   mySQL = require("mysql"),
   cron = require("cron").CronJob,
   create_job = require("./services/create_job"),
+  auth = require("./services/auth"),
   app = express();
 
 var users = {};
@@ -102,6 +103,14 @@ app.get("/", function(_req, res) {
   res.render("index");
 });
 
+// Respond with index file when a GET request is made to the homepage
+app.get("/google24c5d29bf30a1a2a.html", function(_req, res) {
+  res.sendFile('google24c5d29bf30a1a2a.html', {
+        root: __dirname
+      });
+});
+
+
 // Serve the options path and set required headers
 app.get('/create_job', (req, res, next) => {
     let data = {
@@ -109,7 +118,7 @@ app.get('/create_job', (req, res, next) => {
       descr:"desc",
       psid:"1234"
     };
-    create_job.runSample(data);
+    //create_job.runSample(data);
     let referer = req.get('Referer');
     let jobId = ""; let jobDescr = "";
     let jobTitle = ""; let pageId = "";
