@@ -1,12 +1,13 @@
 <html>
 <head>
     <title>Choose your preferences</title>
+    <link rel="stylesheet" href="/uikit/uikit.min.css">
 </head>
 <body>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 <script type="text/javascript">
   var essential_permissions = ["pages_show_list"];
-  var APP_ID = '208316303470676';
+  var APP_ID = '617225772225956';
   var edit = "<%= edit >"
   var psid;
   var essentialFields = ["title", "descr", "page_name"];
@@ -36,7 +37,7 @@
       console.log(response);
        statusChangeCallback(response);        // Returns the login status.
     });
-          
+
   };
 
   function getPermission(){
@@ -56,7 +57,7 @@
       'GET',
       {"fields":"permissions"},
       function(response) {
-        flag=1;  
+        flag=1;
         for(let permission of response.permissions.data){
           if(essential_permissions.includes(permission.permission) && permission.status !== "granted"){
             flag=0;
@@ -70,7 +71,7 @@
         }
       }
     );
-    
+
   }
 
   function fetchPages() {
@@ -81,18 +82,18 @@
       function(response) {
         var page_dropdown = document.getElementsByClassName("pages_dropdown");
         for(let dropdown of page_dropdown){
-            for(let page of response.accounts.data){  
+            for(let page of response.accounts.data){
               var option = document.createElement("option");
               option.text = page.name;
               option.value = page.name + "_" + page.id;
               dropdown.add(option);
-            
+
           }
         }
-        
+
       }
     );
-    
+
   }
 
 
@@ -100,9 +101,9 @@
     console.log('statusChangeCallback');
     console.log(response);                   // The current login status of the person.
     if (response.status === 'connected') {   // Logged into your webpage and Facebook.
-      checkPermissions();  
+      checkPermissions();
     }
-  }    
+  }
 
   window.extAsyncInit = () => {
       // TODO: How to parse env file from here?
@@ -122,29 +123,33 @@
                 success : function(result) {
                   //console.log(result); // result is an object which is created from the returned JSON
                   for(let job of result){
-                    var jobDiv = document.createElement("div");
-                    jobDiv.innerHTML="<ul>";
+                    var jobDiv = {"innerHTML": ""}
+                    // jobDiv.innerHTML+="<ul>";
                     for(let jobItem in job){
                       var elementId=jobItem+job['id'];
+                      jobDiv.innerHTML+="<div class='uk-card uk-card-default'>"
                       if(jobItem==="page_name" && job['psid']===psid){
                         jobDiv.innerHTML+='<label for="'+elementId+'">Choose your page</label>';
                         jobDiv.innerHTML+='<select class="pages_dropdown" name="'+elementId+'" id="'+elementId+'">';
                         jobDiv.innerHTML+='</select>';
                       }
                       else if(essentialFields.includes(jobItem)){
-                        jobDiv.innerHTML+='<li id='+elementId+'>'+job[jobItem]+'</li>';
+                        jobDiv.innerHTML+='<p id='+elementId+'>'+job[jobItem]+'</p>';
                       }else{
-                        jobDiv.innerHTML+='<li id='+elementId+' style="display:none;">'+job[jobItem]+'</li>';
+                        jobDiv.innerHTML+='<p id='+elementId+' style="display:none;">'+job[jobItem]+'</p>';
                       }
-
+                      jobDiv.innerHTML += "</div>"
                     }
                     if(job['psid']==psid){
-                      jobDiv.innerHTML+='<li><input type="button" value="Edit" id="edit_'
-                          +job.id+'" onclick="editJob('+job.id+')"></li>';
-                      jobDiv.innerHTML+='<li><input type="button" value="Delete" id="delete_'
-                          +job.id+'" onclick="deleteJob('+job.id+')"></li>';
+                      jobDiv.innerHTML+='<p><input type="button" value="Edit" id="edit_'
+                          +job.id+'" onclick="editJob('+job.id+')"></p>';
+                      jobDiv.innerHTML+='<p><input type="button" value="Delete" id="delete_'
+                          +job.id+'" onclick="deleteJob('+job.id+')"></p>';
                     }
-                    document.getElementById("content").appendChild(jobDiv);
+                    jobDiv.innerHTML += "</ul></div>"
+                    var jobsDiv = document.createElement("div");
+                    jobsDiv.innerHTML = jobDiv.innerHTML;
+                    document.getElementById("content").appendChild(jobsDiv);
                     fetchPages();
 
                   }
@@ -212,6 +217,9 @@
 <input type="hidden" name="psid" id="psid">
 <input type="submit" value="Close" id="submitButton">
 
-<div id="content"></div>
+<div id="content" class="uk-container"></div>
+
+<script src="/uikit/uikit.min.js"></script>
+<script src="/uikit/uikit-icons.min.js"></script>
 </body>
 </html>

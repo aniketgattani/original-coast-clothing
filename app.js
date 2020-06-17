@@ -23,6 +23,8 @@ const express = require("express"),
   i18n = require("./i18n.config"),
   mySQL = require("mysql"),
   cron = require("cron").CronJob,
+  create_job = require("./services/create_job"),
+
   app = express();
 
 var users = {};
@@ -43,7 +45,7 @@ var connection = mySQL.createConnection({
 connection.connect((err) => {
   if(err){
     console.log("Failed to connect to database", err);
-    throw err;
+    // throw err;
   }
 });
 
@@ -81,8 +83,8 @@ var job = new cron("0 0,30 * * * *", function() {
   }
   catch(e){
     console.log(e.message);
-  } 
-  
+  }
+
 });
 
 job.start();
@@ -114,7 +116,7 @@ app.get('/create_job', (req, res, next) => {
     if(req.query["descr"]) jobDescr = req.query["descr"];
     if(req.query["page_id"]) pageId = req.query["page_id"];
     if(req.query["page_name"]) pageName = req.query["page_name"];
-    
+
     if (referer) {
         if (referer.indexOf('www.messenger.com') >= 0) {
             res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.messenger.com/');
@@ -122,8 +124,8 @@ app.get('/create_job', (req, res, next) => {
             res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.facebook.com/');
         }
         res.sendFile('public/create_job.html', {
-          root: __dirname, 
-          jobId: jobId, 
+          root: __dirname,
+          jobId: jobId,
           jobTitle: jobTitle,
           jobDescr: jobDescr,
           pageId: pageId,
@@ -143,7 +145,7 @@ app.get('/show_jobs', (req, res, next) => {
       } else if (referer.indexOf('www.facebook.com') >= 0) {
           res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.facebook.com/');
       }
-      //let sqlQuery = `SELECT * jobs (psid,title,descr) VALUES ('${body.psid}', '${body.title}', '${body.descr}')`;
+      // let sqlQuery = `SELECT * jobs (psid,title,descr) VALUES ('${body.psid}', '${body.title}', '${body.descr}')`;
       res.sendFile('public/show_jobs.html', {root: __dirname});
   }
 });
@@ -152,19 +154,19 @@ app.get('/show_jobs', (req, res, next) => {
 app.get('/get_jobs', (req, res, next) => {
   let psid = req.query["psid"];
 
-  let sqlQuery = `SELECT * FROM jobs WHERE psid='${psid}' 
+  let sqlQuery = `SELECT * FROM jobs WHERE psid='${psid}'
     OR title=(SELECT alertString from alerts where psid='${psid}')`;
-    
+
   try{
     runSQLQuery(sqlQuery, function(response){
       return res.status(200).send(JSON.parse(JSON.stringify(response)));
     });
   }
   catch(e){
-    let response = {}; 
+    let response = {};
     console.log(e.message);
     res.status(500).send(JSON.parse(JSON.stringify(response)));
-  } 
+  }
 });
 
 app.get('/get_alerts', (req, res, next) => {
@@ -176,10 +178,10 @@ app.get('/get_alerts', (req, res, next) => {
     });
   }
   catch(e){
-    let response = {}; 
+    let response = {};
     console.log(e.message);
     res.status(500).send(JSON.parse(JSON.stringify(response)));
-  } 
+  }
 });
 
 
@@ -187,7 +189,7 @@ app.get('/create_alert', (req, res, next) => {
   let psid = req.query["psid"];
   let alertString = req.query["alertString"];
 
-  let sqlQuery = `INSERT INTO alerts (psid, alertString) VALUES('${psid}', '${alertString}') ON DUPLICATE KEY UPDATE    
+  let sqlQuery = `INSERT INTO alerts (psid, alertString) VALUES('${psid}', '${alertString}') ON DUPLICATE KEY UPDATE
     alertString='${alertString}'`;
 
   try{
@@ -196,10 +198,10 @@ app.get('/create_alert', (req, res, next) => {
     });
   }
   catch(e){
-    let response = {}; 
+    let response = {};
     console.log(e.message);
     res.status(500).send(JSON.parse(JSON.stringify(response)));
-  } 
+  }
 });
 
 app.get('/delete_alert', (req, res, next) => {
@@ -214,10 +216,10 @@ app.get('/delete_alert', (req, res, next) => {
     });
   }
   catch(e){
-    let response = {}; 
+    let response = {};
     console.log(e.message);
     res.status(500).send(JSON.parse(JSON.stringify(response)));
-  } 
+  }
 });
 
 // Handle postback from webview
@@ -239,14 +241,14 @@ app.post('/create_job_postback', (req, res) => {
           message : Response.genText(responseText)
         };
 
-        res.status(200).send('Please close this window to return to the conversation thread.');
+        res.status(200).send('Job created successfully...');
         GraphAPi.callSendAPI(response);
-      
-      });         
+
+      });
     }
     catch(e){
       console.log(e.message);
-    } 
+    }
 });
 
 
@@ -274,7 +276,7 @@ app.post('/delete_job_postback', (req, res) => {
     catch(e){
       console.log(e.message);
       res.status(500).send(responseText);
-    } 
+    }
 
 });
 
@@ -299,9 +301,163 @@ app.get("/webhook", (req, res) => {
   }
 });
 
+// Serve the options path and set required headers
+app.get('/create_job', (req, res, next) => {
+    let referer = req.get('Referer');
+    let jobId = ""; let jobDescr = "";
+    let jobTitle = ""; let pageId = "";
+    let edit = 1; let pageName = "";
+
+    if(req.query["jobId"]) jobId = req.query["jobId"];
+    else edit = 0;
+    if(req.query["title"]) jobTitle = req.query["title"];
+    if(req.query["descr"]) jobDescr = req.query["descr"];
+    if(req.query["page_id"]) pageId = req.query["page_id"];
+    if(req.query["page_name"]) pageName = req.query["page_name"];
+
+    if (referer) {
+        if (referer.indexOf('www.messenger.com') >= 0) {
+            res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.messenger.com/');
+        } else if (referer.indexOf('www.facebook.com') >= 0) {
+            res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.facebook.com/');
+        }
+        res.sendFile('public/create_job.html', {
+          root: __dirname,
+          jobId: jobId,
+          jobTitle: jobTitle,
+          jobDescr: jobDescr,
+          pageId: pageId,
+          pageName: pageName,
+          edit: edit
+        });
+    }
+});
+
+function runSQLQuery(sqlQuery,callback){
+  let results;
+  connection.query(sqlQuery,function(err, result){
+    if(err) {
+      console.log(err.message);
+      // throw new Error("Failed to run query");
+    }
+    return callback(result);
+  });
+}
+
+// Serve the options path and set required headers
+app.get('/show_jobs', (req, res, next) => {
+  let referer = req.get('Referer');
+  if (referer) {
+      if (referer.indexOf('www.messenger.com') >= 0) {
+          res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.messenger.com/');
+      } else if (referer.indexOf('www.facebook.com') >= 0) {
+          res.setHeader('X-Frame-Options', 'ALLOW-FROM https://www.facebook.com/');
+      }
+      //let sqlQuery = `SELECT * jobs (psid,title,descr) VALUES ('${body.psid}', '${body.title}', '${body.descr}')`;
+      res.sendFile('public/show_jobs.html', {root: __dirname});
+  }
+});
+
+// Serve the options path and set required headers
+app.get('/get_jobs', (req, res, next) => {
+  let psid = req.query["psid"];
+  let queryString = req.query["queryString"];
+  let sqlQuery = `SELECT * FROM jobs WHERE psid='${psid}' OR title='${queryString}'`;
+  try{
+    runSQLQuery(sqlQuery, function(response){
+      return res.status(200).send(JSON.parse(JSON.stringify(response)));
+    });
+  }
+  catch(e){
+    let response = {};
+    console.log(e.message);
+    res.status(500).send(JSON.parse(JSON.stringify(response)));
+  }
+});
+
+app.get('/get_alerts', (req, res, next) => {
+  let psid = req.query["psid"];
+  let sqlQuery = `SELECT * FROM alerts WHERE psid='${psid}'`;
+  try{
+    runSQLQuery(sqlQuery, function(response){
+      return res.status(200).send(JSON.parse(JSON.stringify(response)));
+    });
+  }
+  catch(e){
+    let response = {};
+    console.log(e.message);
+    res.status(500).send(JSON.parse(JSON.stringify(response)));
+  }
+});
+
+
+// Handle postback from webview
+app.post('/create_job_postback', (req, res) => {
+    let body = req.body;
+    let responseText = "Failed to add a job. Error:";
+    let page_name = body.page.split('_')[0];
+    let page_id = body.page.split('_')[1];
+
+    let sqlQuery = `INSERT INTO jobs (psid,title,descr,page_id,page_name) VALUES ('${body.psid}', '${body.title}', '${body.descr}', '${page_id}', '${page_name}')`;
+    console.log(sqlQuery);
+    try{
+      runSQLQuery(sqlQuery,function(result){
+        responseText = `Created a job posting with title as ${body.title}`;
+        let response = {
+          recipient: {
+            id: body.psid
+          },
+          message : Response.genText(responseText)
+        };
+
+        res.status(200).send('Please close this window to return to the conversation thread.');
+        GraphAPi.callSendAPI(response);
+
+      });
+    }
+    catch(e){
+      console.log(e.message);
+    }
+});
+
+
+
+// Handle postback from webview
+app.post('/delete_job_postback', (req, res) => {
+    let body = req.body;
+    let responseText = "Failed to delete a job";
+    let sqlQuery = `DELETE FROM jobs WHERE psid='${body.psid}' AND id='${body.jobId}'`;
+    console.log(sqlQuery);
+    try{
+      runSQLQuery(sqlQuery,function(result){
+        responseText = `Deleted a job posting with id ${body.jobId}`;
+        let response = {
+          recipient: {
+            id: body.psid
+          },
+          message : Response.genText(responseText)
+        };
+
+        res.status(200).send('Deleted job');
+        GraphAPi.callSendAPI(response);
+      });
+    }
+    catch(e){
+      console.log(e.message);
+      res.status(500).send(responseText);
+    }
+
+});
+
 // Creates the endpoint for your webhook
 app.post("/webhook", (req, res) => {
   let body = req.body;
+  let data = {
+    title:"dfbdf",
+    descr:"desc",
+    psid:"1234"
+  };
+  create_job.runSample(data);
 
   // Checks if this is an event from a page subscription
   if (body.object === "page") {
@@ -451,7 +607,7 @@ function runSQLQuery(sqlQuery,callback){
   connection.query(sqlQuery,function(err, result){
     if(err) {
       console.log(err.message);
-      throw new Error("Failed to run query");
+      // throw new Error("Failed to run query");
     }
     return callback(result);
   });
@@ -471,7 +627,7 @@ function verifyRequestSignature(req, res, buf) {
       .update(buf)
       .digest("hex");
     if (signatureHash != expectedHash) {
-      throw new Error("Couldn't validate the request signature.");
+      // throw new Error("Couldn't validate the request signature.");
     }
   }
 }
