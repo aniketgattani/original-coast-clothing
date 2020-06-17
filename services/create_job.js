@@ -1,9 +1,10 @@
 'use strict';
 
-const createAuthCredential = require(`./google_auth`);
 const createCompany = require('./create_company');
 
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT;
+
+const createAuthCredential = require('./google_auth');
 
 /**
  * This file contains the basic knowledge about job, including:
@@ -45,8 +46,22 @@ const generateJobWithRequiredFields = (companyName, jobTitle, jobDescr) => {
 /**
  * Create a job.
  */
-const createJob = async (jobServiceClient, jobToBeCreated) => {
+const createJob = async (jobServiceClient1, data) => {
   try {
+
+    var jobServiceClient = await createAuthCredential();
+
+    // Create a company before creating jobs
+    const companyCreated = await createCompany.createCompany(
+      jobServiceClient,
+      `company-${data.psid}`
+    );
+
+    const companyName = companyCreated.name;
+
+    // Construct a job
+    const jobToBeCreated = generateJobWithRequiredFields(companyName, data.title, data.descr);
+
     const request = {
       parent: `projects/${PROJECT_ID}`,
       resource: {
@@ -58,6 +73,7 @@ const createJob = async (jobServiceClient, jobToBeCreated) => {
 
     console.log(`Job created: ${JSON.stringify(jobCreated.data)}`);
     return jobCreated.data;
+
   } catch (e) {
     console.error(`Got exception while creating job!`);
     throw e;
@@ -133,8 +149,10 @@ const updateJobWithFieldMask = async (jobServiceClient, jobName, jobToBeUpdated,
 /**
  * Delete a job.
  */
-const deleteJob = async (jobServiceClient, jobName) => {
+const deleteJob = async (jobServiceClient1, jobName) => {
   try {
+    var jobServiceClient = await createAuthCredential();
+
     const request = {
       name: jobName,
     };
@@ -142,7 +160,46 @@ const deleteJob = async (jobServiceClient, jobName) => {
     await jobServiceClient.projects.jobs.delete(request);
     console.log('Job deleted');
   } catch (e) {
-    console.error('Got exception while deleting job');
+    console.error(`Got exception while deleting job ${e}`);
+    throw e;
+  }
+};
+
+/**
+ * Simple search jobs with keyword.
+ */
+const searchJobs = async (jobServiceClient1, psid, keyword) => {
+  try {
+    var jobServiceClient = await createAuthCredential();
+
+    const jobQuery = {
+      query: keyword,
+    };
+
+    // if (companyName) {
+    //   jobQuery.companyNames = [companyName];
+    // }
+
+    var REQUEST_META_DATA = {
+      domain : process.env.APP_URL,
+      sessionId : "UNKNOWN",
+      userId : psid
+    };
+
+    const request = {
+      parent: `projects/${PROJECT_ID}`,
+      resource: {
+        jobQuery: jobQuery,
+        requestMetadata: REQUEST_META_DATA,
+        searchMode: 'JOB_SEARCH',
+      },
+    };
+
+    const result = await jobServiceClient.projects.jobs.search(request);
+
+    return result.data;
+  } catch (e) {
+    console.error(e);
     throw e;
   }
 };
@@ -168,7 +225,7 @@ const runSample = async (data) => {
     const jobCreated = await createJob(jobServiceClient, jobToBeCreated);
 
   } catch (e) {
-    console.log(e);
+    //console.log(e);
     throw e;
   }
 };
@@ -177,5 +234,6 @@ module.exports = {
   generateJobWithRequiredFields: generateJobWithRequiredFields,
   createJob: createJob,
   deleteJob: deleteJob,
+  searchJobs: searchJobs,
   runSample: runSample,
 };

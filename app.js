@@ -23,8 +23,8 @@ const express = require("express"),
   i18n = require("./i18n.config"),
   mySQL = require("mysql"),
   cron = require("cron").CronJob,
-  create_job = require("./services/create_job"),
-  auth = require("./services/auth"),
+  google_jobs = require("./services/create_job"),
+  createAuthCredential = require("./services/google_auth"),
   app = express();
 
 var users = {};
@@ -57,6 +57,10 @@ app.use(
   })
 );
 
+var jobServiceClient = createAuthCredential().then(function(result) {
+  return result;
+});
+
 
 var job = new cron("0 0,30 * * * *", function() {
   console.log("running a task every 30 minutes");
@@ -71,12 +75,18 @@ var job = new cron("0 0,30 * * * *", function() {
     runSQLQuery(sqlQuery, function(response){
       let jsonResponses = JSON.parse(JSON.stringify(response));
       for(let resp of jsonResponses){
-        console.log(resp);
-        GraphAPi.callSendAPI({
-          message : { text : "ohh hello my boy" },
-          recipient : {
-            id: resp.psid
+        google_jobs.searchJobs(jobServiceClient, resp.psid, resp.alertString).then(function(jobs){
+          jobs = jobs.matchingJobs; 
+          var msg = "";
+          for(let job of jobs){
+            msg += job.job.title + '; ';
           }
+          GraphAPi.callSendAPI({
+              message : { text : msg },
+              recipient : {
+                id: resp.psid
+              }
+            });
         });
       }
     });
@@ -103,21 +113,13 @@ app.get("/", function(_req, res) {
   res.render("index");
 });
 
-// Respond with index file when a GET request is made to the homepage
-app.get("/google24c5d29bf30a1a2a.html", function(_req, res) {
-  res.sendFile('google24c5d29bf30a1a2a.html', {
-        root: __dirname
-      });
-});
-
 
 // Serve the options path and set required headers
 app.get('/create_job', (req, res, next) => {
-    let data = {
-      title:"dfbdf",
-      descr:"desc",
-      psid:"1234"
-    };
+    console.log(jobServiceClient);
+    google_jobs.searchJobs(jobServiceClient,"3028081737306471","junior software developer").then(function(result){
+      console.log(result);
+    });
     //create_job.runSample(data);
     let referer = req.get('Referer');
     let jobId = ""; let jobDescr = "";
@@ -243,24 +245,25 @@ app.post('/create_job_postback', (req, res) => {
     let page_name = body.page.split('_')[0];
     let page_id = body.page.split('_')[1];
 
-    let sqlQuery = `INSERT INTO jobs (psid,title,descr,page_id,page_name) VALUES ('${body.psid}', '${body.title}', '${body.descr}', '${page_id}', '${page_name}')`;
-    console.log(sqlQuery);
-
     try{
-      
-      runSQLQuery(sqlQuery,function(result){
-        responseText = `Created a job posting with title as ${body.title}`;
-        let response = {
-          recipient: {
-            id: body.psid
-          },
-          message : Response.genText(responseText)
-        };
+      google_jobs.createJob(jobServiceClient,body).then(function(job_data){
+        let sqlQuery = `INSERT INTO jobs (id,psid,title,descr,page_id,page_name) VALUES ('${job_data.name}','${body.psid}', '${body.title}', '${body.descr}', '${page_id}', '${page_name}')`;
+        runSQLQuery(sqlQuery,function(result){
+          responseText = `Created a job posting with title as ${body.title}`;
+          let response = {
+            recipient: {
+              id: body.psid
+            },
+            message : Response.genText(responseText)
+          };
 
-        res.status(200).send('Please close this window to return to the conversation thread.');
-        GraphAPi.callSendAPI(response);
+          res.status(200).send('Please close this window to return to the conversation thread.');
+          GraphAPi.callSendAPI(response);
+        
+        });
+        return job_data;
+      });
       
-      });         
     }
     catch(e){
       console.log(e.message);
@@ -276,6 +279,7 @@ app.post('/delete_job_postback', (req, res) => {
     let sqlQuery = `DELETE FROM jobs WHERE psid='${body.psid}' AND id='${body.jobId}'`;
     console.log(sqlQuery);
     try{
+      google_jobs.deleteJob(jobServiceClient, body.jobId);
       runSQLQuery(sqlQuery,function(result){
         responseText = `Deleted a job posting with id ${body.jobId}`;
         let response = {

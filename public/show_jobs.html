@@ -140,9 +140,9 @@
                     }
                     if(job['psid']==psid){
                       jobDiv.innerHTML+='<li><input type="button" value="Edit" id="edit_'
-                          +job.id+'" onclick="editJob('+job.id+')"></li>';
+                          +job.id+'" onclick="editJob(`'+job.id+'`)"></li>';
                       jobDiv.innerHTML+='<li><input type="button" value="Delete" id="delete_'
-                          +job.id+'" onclick="deleteJob('+job.id+')"></li>';
+                          +job.id+'" onclick="deleteJob(`'+job.id+'`)"></li>';
                     }
                     document.getElementById("content").appendChild(jobDiv);
                     fetchPages();
